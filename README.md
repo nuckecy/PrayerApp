@@ -12,7 +12,7 @@
 
 **Quick Links:**
 - 🚀 **[Quick Start Deployment](./docs/deployment/QUICK_START.md)** - Deploy to Vercel in 20 minutes ⭐ **START HERE**
-- 📚 **[Complete Documentation Index](./docs/README.md)** - Browse all guides organized by topic
+- 📚 **[Complete Documentation Index](./docs/INDEX.md)** - Browse all guides organized by topic
 - 📊 **[Product Requirements](./PRD.md)** - Full product specification
 - 📈 **[Project Status](./PROJECT_STATUS.md)** - Development status and roadmap
 
