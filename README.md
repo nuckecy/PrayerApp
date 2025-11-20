@@ -12,6 +12,7 @@
 
 - **[Product Requirements Document (PRD)](./PRD.md)** - Comprehensive product specification including vision, features, architecture, and roadmap
 - **[Project Status & Roadmap](./PROJECT_STATUS.md)** - Current development status, completed features, and what's coming next
+- **[Backend Architecture Decision](./BACKEND_ARCHITECTURE.md)** - Why we use Supabase instead of custom backend
 - **[Quick Start Guide](./QUICK_START.md)** - Deploy to production in 20 minutes
 - **[Deployment Checklist](./DEPLOYMENT_CHECKLIST.md)** - Pre-launch verification steps
 
@@ -137,25 +138,25 @@ Charts: Recharts
 
 ### Backend
 ```yaml
-Runtime: Node.js 20 LTS
-Framework: Fastify 4.x
-Database: PostgreSQL 15
-Cache: Redis 7
-Queue: Bull Queue
-File Storage: AWS S3
-Auth: JWT + Refresh Tokens
-Validation: Zod
-ORM: Prisma 5
+Database: Supabase PostgreSQL (15 with 11 tables, 6 enums)
+Authentication: Supabase Auth (JWT + Refresh Tokens)
+Real-time: Supabase Real-time Subscriptions
+API: Supabase SQL Functions + Direct Queries
+Auth Guard: Row Level Security (RLS) Policies
+Triggers: 5 automated database triggers
+
+Note: The `backend/` folder (Fastify/Prisma) is DEPRECATED
+See BACKEND_ARCHITECTURE.md for architectural decision details
 ```
 
 ### Infrastructure
 ```yaml
-Hosting: Vercel (Frontend) + AWS ECS (Backend)
-CDN: CloudFlare
-Monitoring: Sentry + DataDog
-Analytics: PostHog
-CI/CD: GitHub Actions
-Testing: Vitest + Playwright
+Frontend Hosting: Vercel
+Backend/Database: Supabase Cloud
+CDN: Vercel CDN
+CI/CD: GitHub → Vercel integration
+Source Control: GitHub
+Authentication: Supabase Auth
 ```
 
 ## Getting Started
