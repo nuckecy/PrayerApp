@@ -6,18 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
 
+interface Author {
+  user_id: string;
+  profiles: {
+    name: string;
+  };
+}
+
 interface Goal {
   id: string;
   title: string;
   description: string;
   total_days: number;
   tags: string[];
-  authors?: {
-    user_id: string;
-    profiles?: {
-      name: string;
-    };
-  };
+  authors?: Author;
 }
 
 export default function GoalsPage() {
@@ -36,9 +38,9 @@ export default function GoalsPage() {
             description,
             total_days,
             tags,
-            authors (
+            authors!inner (
               user_id,
-              profiles (
+              profiles!inner (
                 name
               )
             )
@@ -47,7 +49,9 @@ export default function GoalsPage() {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setGoals(data || []);
+
+        // Type assertion since Supabase returns the correct structure
+        setGoals((data as any) || []);
       } catch (error) {
         console.error('Failed to fetch goals:', error);
       } finally {
@@ -111,7 +115,7 @@ export default function GoalsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span>✍️</span>
-                    <span>by {goal.authors?.profiles?.name || 'Unknown'}</span>
+                    <span>by {goal.authors?.profiles.name || 'Unknown'}</span>
                   </div>
                 </div>
               </CardContent>
