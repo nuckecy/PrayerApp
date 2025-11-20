@@ -10,11 +10,16 @@
 
 ## 📋 Documentation
 
-- **[Product Requirements Document (PRD)](./PRD.md)** - Comprehensive product specification including vision, features, architecture, and roadmap
-- **[Project Status & Roadmap](./PROJECT_STATUS.md)** - Current development status, completed features, and what's coming next
-- **[Backend Architecture Decision](./BACKEND_ARCHITECTURE.md)** - Why we use Supabase instead of custom backend
-- **[Quick Start Guide](./QUICK_START.md)** - Deploy to production in 20 minutes
-- **[Deployment Checklist](./DEPLOYMENT_CHECKLIST.md)** - Pre-launch verification steps
+**Quick Links:**
+- 🚀 **[Quick Start Deployment](./docs/deployment/QUICK_START.md)** - Deploy to Vercel in 20 minutes ⭐ **START HERE**
+- 📚 **[Complete Documentation Index](./docs/README.md)** - Browse all guides organized by topic
+- 📊 **[Product Requirements](./PRD.md)** - Full product specification
+- 📈 **[Project Status](./PROJECT_STATUS.md)** - Development status and roadmap
+
+**Documentation by Category:**
+- **Deployment:** [docs/deployment/](./docs/deployment/) - Production deployment guides
+- **Setup:** [docs/setup/](./docs/setup/) - Local development and configuration
+- **Guides:** [docs/guides/](./docs/guides/) - Architecture decisions, testing, admin tasks
 
 ## 📖 Table of Contents
 
