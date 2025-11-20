@@ -11,6 +11,9 @@
 ## 📋 Documentation
 
 - **[Product Requirements Document (PRD)](./PRD.md)** - Comprehensive product specification including vision, features, architecture, and roadmap
+- **[Project Status & Roadmap](./PROJECT_STATUS.md)** - Current development status, completed features, and what's coming next
+- **[Quick Start Guide](./QUICK_START.md)** - Deploy to production in 20 minutes
+- **[Deployment Checklist](./DEPLOYMENT_CHECKLIST.md)** - Pre-launch verification steps
 
 ## 📖 Table of Contents
 
@@ -31,6 +34,26 @@
 ## Overview
 
 DailyGoalTracker revolutionizes habit formation through a unique "one day at a time" approach. Users must complete each day's content sequentially before progressing, with no ability to speed-run or skip ahead. The platform connects content authors with learners through structured programs that emphasize consistency over speed.
+
+### 🚀 Current Status: MVP Phase - Authentication Complete ✅
+
+**What's Ready:**
+- ✅ User registration & login system
+- ✅ Supabase authentication integrated
+- ✅ Dashboard for authenticated users
+- ✅ Beautiful landing page
+- ✅ Responsive mobile design
+- ✅ PWA installable app
+- ✅ Local development environment
+
+**What's Next:**
+- 📋 Goal creation interface for authors
+- 🎯 Goal browsing and discovery
+- 📅 Daily progress tracking with The Midnight Rule
+- 👥 Groups and collective accountability
+- 🔔 Notifications and reminders
+
+👉 **See [PROJECT_STATUS.md](./PROJECT_STATUS.md) for complete feature breakdown and development roadmap.**
 
 ### 🚀 Core Philosophy
 
@@ -70,6 +93,32 @@ DailyGoalTracker revolutionizes habit formation through a unique "one day at a t
 - 📊 **Platform Analytics**: Health and engagement metrics
 - 👥 **User Management**: Author and user administration
 - 🔒 **Policy Enforcement**: Content and behavior moderation
+
+## Quick Start
+
+### Local Development (3 minutes)
+
+```bash
+# Clone the repo
+git clone https://github.com/nuckecy/PrayerApp.git
+cd PrayerApp
+
+# Install dependencies
+cd frontend && npm install
+
+# Set up environment
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+
+# Start dev server
+npm run dev
+
+# Open http://localhost:3000
+```
+
+### Deploy to Production (10 minutes)
+
+👉 **See [QUICK_START.md](./QUICK_START.md)** for step-by-step Vercel deployment guide.
 
 ## Tech Stack
 
