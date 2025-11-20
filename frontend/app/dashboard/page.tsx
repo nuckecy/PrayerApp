@@ -87,7 +87,7 @@ export default function DashboardPage() {
             <h1 className="text-4xl font-bold mb-2">Welcome back, {user?.name}!</h1>
             {activeEnrollments.length > 0 && (
               <p className="text-lg text-muted-foreground">
-                Keep up your streak! You're doing great.
+                Keep up your streak! You&apos;re doing great.
               </p>
             )}
           </div>
@@ -109,7 +109,7 @@ export default function DashboardPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <p className="text-xl text-muted-foreground mb-4">
-                  You haven't started any goals yet.
+                  You haven&apos;t started any goals yet.
                 </p>
                 <Button asChild>
                   <Link href="/goals">Explore Available Goals</Link>
