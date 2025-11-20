@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, getUserProfile } from '@/lib/auth';
+import { canCompleteToday, isStreakAtRisk, formatNextAvailable } from '@/lib/midnight-rule';
 
 interface Enrollment {
   id: string;
@@ -33,6 +34,10 @@ interface DayContent {
   content_payload: any;
 }
 
+interface UserProfile {
+  timezone: string;
+}
+
 export default function GoalPlayerPage({
   params,
 }: {
@@ -41,8 +46,10 @@ export default function GoalPlayerPage({
   const router = useRouter();
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [currentDay, setCurrentDay] = useState<DayContent | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
+  const [pausing, setPausing] = useState(false);
   const [error, setError] = useState('');
   const [completedData, setCompletedData] = useState<any>({});
 
@@ -54,6 +61,10 @@ export default function GoalPlayerPage({
           router.push('/auth/login');
           return;
         }
+
+        // Fetch user profile for timezone
+        const profile = await getUserProfile(user.id);
+        setUserProfile(profile);
 
         // Fetch enrollment
         const { data: enrollmentData, error: enrollmentError } = await supabase
@@ -85,6 +96,12 @@ export default function GoalPlayerPage({
 
         setEnrollment(enrollmentData as any);
 
+        // Check if paused
+        if (enrollmentData.status === 'paused') {
+          // User can still view, just can't complete
+          setError('');
+        }
+
         // Fetch current day content
         const { data: dayData, error: dayError } = await supabase
           .from('goal_days')
@@ -106,29 +123,57 @@ export default function GoalPlayerPage({
     fetchData();
   }, [params.id, params.enrollmentId, router]);
 
-  const canCompleteToday = () => {
-    if (!enrollment?.last_completed_at) return true;
+  const handlePauseResume = async () => {
+    if (!enrollment) return;
 
-    const lastCompleted = new Date(enrollment.last_completed_at);
-    const now = new Date();
+    setPausing(true);
+    setError('');
 
-    // Check if it's a different day (simple version - could be enhanced with timezone)
-    const lastDate = lastCompleted.toDateString();
-    const today = now.toDateString();
+    try {
+      const newStatus = enrollment.status === 'paused' ? 'active' : 'paused';
 
-    return lastDate !== today;
+      const { error: updateError } = await supabase
+        .from('enrollments')
+        .update({ status: newStatus })
+        .eq('id', enrollment.id);
+
+      if (updateError) throw updateError;
+
+      setEnrollment({ ...enrollment, status: newStatus });
+    } catch (err: any) {
+      console.error('Failed to pause/resume:', err);
+      setError(err.message || 'Failed to update status');
+    } finally {
+      setPausing(false);
+    }
   };
 
   const handleCompleteDay = async () => {
-    if (!enrollment || !currentDay) return;
+    if (!enrollment || !currentDay || !userProfile) return;
 
     setCompleting(true);
     setError('');
 
     try {
-      // Check midnight rule
-      if (!canCompleteToday()) {
-        setError('You already completed a day today. Come back tomorrow!');
+      // Check if paused
+      if (enrollment.status === 'paused') {
+        setError('Goal is paused. Resume to continue.');
+        return;
+      }
+
+      // Check midnight rule with timezone
+      const midnightCheck = canCompleteToday(
+        enrollment.last_completed_at,
+        userProfile.timezone || 'UTC'
+      );
+
+      if (!midnightCheck.canComplete) {
+        setError(
+          midnightCheck.reason +
+            (midnightCheck.nextAvailableAt
+              ? ` (${formatNextAvailable(midnightCheck.nextAvailableAt, userProfile.timezone || 'UTC')})`
+              : '')
+        );
         return;
       }
 
@@ -175,8 +220,8 @@ export default function GoalPlayerPage({
       if (updateError) throw updateError;
 
       if (isGoalCompleted) {
-        // Goal completed - redirect to dashboard with success message
-        router.push('/dashboard?goalCompleted=true');
+        // Goal completed - redirect to progress page with certificate
+        router.push(`/goals/${params.id}/progress/${params.enrollmentId}?completed=true`);
       } else {
         // Day completed - reload to show next day
         window.location.reload();
@@ -215,18 +260,79 @@ export default function GoalPlayerPage({
   if (!enrollment || !currentDay) return null;
 
   const progress = (currentDay.day_index / enrollment.goals.total_days) * 100;
-  const canComplete = canCompleteToday();
+  const midnightCheck = canCompleteToday(
+    enrollment.last_completed_at,
+    userProfile?.timezone || 'UTC'
+  );
+  const streakRisk = isStreakAtRisk(
+    enrollment.last_completed_at,
+    userProfile?.timezone || 'UTC'
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-6">
+          <div className="mb-6 flex justify-between items-center">
             <Button variant="outline" asChild>
               <Link href="/dashboard">← Back to Dashboard</Link>
             </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" asChild>
+                <Link href={`/goals/${params.id}/progress/${params.enrollmentId}`}>
+                  📊 View Progress
+                </Link>
+              </Button>
+              <Button
+                variant={enrollment.status === 'paused' ? 'default' : 'outline'}
+                onClick={handlePauseResume}
+                disabled={pausing}
+              >
+                {pausing
+                  ? 'Updating...'
+                  : enrollment.status === 'paused'
+                  ? '▶️ Resume'
+                  : '⏸️ Pause'}
+              </Button>
+            </div>
           </div>
+
+          {/* Paused Notice */}
+          {enrollment.status === 'paused' && (
+            <Card className="mb-6 bg-blue-50 border-blue-300">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">⏸️</span>
+                  <div>
+                    <p className="font-semibold text-blue-900">Goal Paused</p>
+                    <p className="text-sm text-blue-700">
+                      Your progress is saved. Resume whenever you&apos;re ready to continue!
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Streak Risk Warning */}
+          {streakRisk.atRisk && enrollment.status !== 'paused' && (
+            <Card className="mb-6 bg-yellow-50 border-yellow-300">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <div>
+                    <p className="font-semibold text-yellow-900">{streakRisk.message}</p>
+                    {streakRisk.hoursRemaining && (
+                      <p className="text-sm text-yellow-700">
+                        You have {streakRisk.hoursRemaining} hour{streakRisk.hoursRemaining !== 1 ? 's' : ''} left to maintain your streak!
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Progress Card */}
           <Card className="mb-6">
@@ -250,12 +356,20 @@ export default function GoalPlayerPage({
                 </div>
               </div>
 
-              {enrollment.streak_count > 0 && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span>🔥</span>
-                  <span className="font-medium">{enrollment.streak_count} day streak</span>
-                </div>
-              )}
+              <div className="flex gap-4">
+                {enrollment.streak_count > 0 && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span>🔥</span>
+                    <span className="font-medium">{enrollment.streak_count} day streak</span>
+                  </div>
+                )}
+                {midnightCheck.isWarningPeriod && (
+                  <div className="flex items-center gap-2 text-sm text-yellow-600">
+                    <span>⏰</span>
+                    <span className="font-medium">20+ hours since last completion</span>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -328,11 +442,14 @@ export default function GoalPlayerPage({
                 </div>
               )}
 
-              {!canComplete && (
+              {!midnightCheck.canComplete && (
                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <p className="text-sm text-yellow-800">
-                    You already completed a day today. Come back tomorrow to continue your streak!
-                  </p>
+                  <p className="text-sm text-yellow-800">{midnightCheck.reason}</p>
+                  {midnightCheck.nextAvailableAt && (
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Next available: {formatNextAvailable(midnightCheck.nextAvailableAt, userProfile?.timezone || 'UTC')}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -340,10 +457,20 @@ export default function GoalPlayerPage({
                 className="w-full"
                 size="lg"
                 onClick={handleCompleteDay}
-                disabled={completing || !canComplete}
+                disabled={completing || !midnightCheck.canComplete || enrollment.status === 'paused'}
               >
-                {completing ? 'Completing...' : `Complete Day ${currentDay.day_index}`}
+                {completing
+                  ? 'Completing...'
+                  : enrollment.status === 'paused'
+                  ? 'Resume Goal to Continue'
+                  : `Complete Day ${currentDay.day_index}`}
               </Button>
+
+              {midnightCheck.canComplete && enrollment.status !== 'paused' && (
+                <p className="text-center text-sm text-muted-foreground">
+                  Complete today to maintain your streak! 🔥
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
