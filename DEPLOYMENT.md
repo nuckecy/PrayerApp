@@ -62,137 +62,96 @@ You can also use this one-click deploy:
 In your Vercel project settings, add:
 
 ```env
-NEXT_PUBLIC_API_URL=https://your-backend-url.com
-NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
 ```
 
 ---
 
-## Backend Deployment Options
+## Backend Setup (Supabase)
 
-### Option 1: Railway (Recommended for Quick Testing)
+**Current Implementation**: This project uses Supabase as the backend, providing authentication, database, and real-time capabilities out of the box.
 
-Railway is great for Node.js backends with PostgreSQL.
+### Setup Steps
 
-1. **Install Railway CLI**:
-   ```bash
-   npm install -g @railway/cli
-   ```
+Follow the comprehensive guide in [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for detailed instructions.
 
-2. **Login**:
-   ```bash
-   railway login
-   ```
+**Quick Summary**:
 
-3. **Initialize in backend directory**:
-   ```bash
-   cd backend
-   railway init
-   ```
+1. **Create Supabase Project** (5 minutes):
+   - Go to [supabase.com](https://supabase.com)
+   - Sign in and create new project
+   - Save your database password
 
-4. **Add PostgreSQL**:
-   ```bash
-   railway add --database postgresql
-   ```
+2. **Run Database Schema**:
+   - Open SQL Editor in Supabase Dashboard
+   - Copy and run `supabase/schema.sql`
+   - Copy and run `supabase/rls-policies.sql`
 
-5. **Set Environment Variables**:
-   ```bash
-   railway variables set JWT_SECRET="your-production-secret-here"
-   railway variables set JWT_REFRESH_SECRET="your-refresh-secret-here"
-   railway variables set FRONTEND_URL="https://your-vercel-app.vercel.app"
-   railway variables set PORT=3001
-   ```
+3. **Get API Keys**:
+   - Go to Project Settings → API
+   - Copy Project URL and anon public key
 
-6. **Deploy**:
-   ```bash
-   railway up
-   ```
+4. **Configure Vercel**:
+   - Add environment variables in Vercel Dashboard:
+     - `NEXT_PUBLIC_SUPABASE_URL`
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - Redeploy your app
 
-7. **Run Migrations**:
-   ```bash
-   railway run npx prisma migrate deploy
-   ```
+### Alternative: Fastify Backend (Not Currently Used)
 
-### Option 2: Render
+If you prefer a self-hosted backend, the repository includes a complete Fastify implementation in the `backend/` directory. To use it instead of Supabase:
+
+1. Deploy backend to Railway, Render, or Heroku (see instructions below)
+2. Update frontend to use the API client instead of Supabase
+3. Set `NEXT_PUBLIC_API_URL` environment variable
+
+<details>
+<summary>Click to expand Fastify backend deployment options</summary>
+
+#### Railway (Recommended for Quick Testing)
+
+```bash
+cd backend
+railway init
+railway add --database postgresql
+railway variables set JWT_SECRET="your-secret"
+railway up
+railway run npx prisma migrate deploy
+```
+
+#### Render
 
 1. Go to [render.com](https://render.com)
-2. Create a new "Web Service"
-3. Connect your GitHub repository
-4. Configure:
-   - **Root Directory**: `backend`
-   - **Build Command**: `npm install && npx prisma generate && npm run build`
-   - **Start Command**: `npm start`
-   - **Add PostgreSQL database** from Render dashboard
+2. Create new Web Service
+3. Set Root Directory: `backend`
+4. Build Command: `npm install && npx prisma generate && npm run build`
+5. Start Command: `npm start`
+6. Add PostgreSQL database
 
-5. Set environment variables in Render:
-   ```
-   DATABASE_URL=(auto-filled by Render PostgreSQL)
-   JWT_SECRET=your-production-secret
-   JWT_REFRESH_SECRET=your-refresh-secret
-   FRONTEND_URL=https://your-vercel-app.vercel.app
-   NODE_ENV=production
-   ```
+#### Heroku
 
-### Option 3: Heroku
+```bash
+cd backend
+heroku create dailygoaltracker-api
+heroku addons:create heroku-postgresql:hobby-dev
+heroku config:set JWT_SECRET="your-secret"
+git subtree push --prefix backend heroku main
+```
 
-1. **Install Heroku CLI**:
-   ```bash
-   brew install heroku/brew/heroku  # macOS
-   # or
-   curl https://cli-assets.heroku.com/install.sh | sh  # Linux
-   ```
-
-2. **Login and Create App**:
-   ```bash
-   heroku login
-   cd backend
-   heroku create dailygoaltracker-api
-   ```
-
-3. **Add PostgreSQL**:
-   ```bash
-   heroku addons:create heroku-postgresql:hobby-dev
-   ```
-
-4. **Set Environment Variables**:
-   ```bash
-   heroku config:set JWT_SECRET="your-production-secret"
-   heroku config:set JWT_REFRESH_SECRET="your-refresh-secret"
-   heroku config:set FRONTEND_URL="https://your-vercel-app.vercel.app"
-   heroku config:set NODE_ENV=production
-   ```
-
-5. **Deploy**:
-   ```bash
-   git subtree push --prefix backend heroku main
-   ```
-
-6. **Run Migrations**:
-   ```bash
-   heroku run npx prisma migrate deploy
-   ```
-
-### Option 4: AWS ECS (Production - More Complex)
-
-For production-grade deployment, refer to the infrastructure section in README.md.
+</details>
 
 ---
 
 ## Testing the Deployment
 
-### 1. Test Backend Health
+### 1. Test Supabase Connection
 
-```bash
-curl https://your-backend-url.com/health
-```
-
-Expected response:
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-11-20T..."
-}
-```
+In Supabase Dashboard:
+- Go to Authentication → Users
+- Should show empty list (ready for signups)
+- Go to Table Editor
+- Should show all tables (profiles, goals, enrollments, etc.)
 
 ### 2. Test Frontend
 
@@ -200,69 +159,86 @@ Visit your Vercel URL: `https://your-app.vercel.app`
 
 ### 3. Test Full Flow
 
-1. Register a new account
-2. Login
-3. Browse goals (will be empty initially)
-4. Check dashboard
+1. **Register**: Create a new account at `/auth/register`
+2. **Verify User**: Check Supabase → Authentication → Users (should show new user)
+3. **Verify Profile**: Check Supabase → Table Editor → profiles (should show auto-created profile)
+4. **Login**: Sign in with your credentials
+5. **Dashboard**: Should load successfully (empty initially)
+6. **Browse Goals**: Visit `/goals` (will be empty until you add some)
 
 ---
 
 ## Quick Deploy Commands (Summary)
 
-### Frontend to Vercel:
+### 1. Setup Supabase (One-time):
+```bash
+# Follow SUPABASE_SETUP.md guide
+# 1. Create project at supabase.com
+# 2. Run schema.sql in SQL Editor
+# 3. Run rls-policies.sql in SQL Editor
+# 4. Copy Project URL and anon key
+```
+
+### 2. Deploy Frontend to Vercel:
 ```bash
 cd /home/user/PrayerApp
 vercel --prod
 ```
 
-### Backend to Railway:
+### 3. Configure Environment Variables:
 ```bash
-cd /home/user/PrayerApp/backend
-railway init
-railway add --database postgresql
-railway up
-railway run npx prisma migrate deploy
+# In Vercel Dashboard → Settings → Environment Variables
+# Add:
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
 ```
 
-### Get Backend URL:
+### 4. Redeploy:
 ```bash
-railway status
-```
-
-### Update Vercel with Backend URL:
-```bash
-vercel env add NEXT_PUBLIC_API_URL production
-# Enter: https://your-railway-url.railway.app
+# After adding env vars, trigger a new deployment
+vercel --prod
 ```
 
 ---
 
 ## Troubleshooting
 
-### CORS Errors
-Make sure your backend `.env` has:
-```
-FRONTEND_URL=https://your-vercel-app.vercel.app
-```
+### Environment Variables Not Working
+- Ensure variables start with `NEXT_PUBLIC_` for client-side access
+- Redeploy after adding environment variables
+- Check Vercel deployment logs for env var issues
 
-### Database Connection Issues
-- Verify DATABASE_URL is set correctly
-- Check that Prisma migrations have been run
-- Ensure PostgreSQL database is accessible
+### Supabase Connection Issues
+- Verify Project URL is correct (format: `https://xxxxx.supabase.co`)
+- Verify anon key is the **anon public** key, not the service_role key
+- Check Supabase project status (should be "Active")
+
+### RLS Policy Errors
+- Ensure both `schema.sql` and `rls-policies.sql` were run successfully
+- Check SQL Editor for any error messages
+- Verify tables have RLS enabled in Table Editor
+
+### Authentication Errors
+- Check Authentication is enabled in Supabase Dashboard
+- Verify email confirmations are disabled for testing
+- Check user was created in Authentication → Users
 
 ### Build Failures
 - Check Node version compatibility (use Node 20+)
 - Verify all dependencies are in package.json
 - Check build logs for specific errors
+- Ensure @supabase/supabase-js is installed
 
 ---
 
 ## Cost Estimates (Free Tiers)
 
-- **Vercel**: Free for hobby projects
-- **Railway**: $5/month credit free tier
-- **Render**: Free tier available (sleeps after inactivity)
-- **Heroku**: Free tier discontinued, starts at $7/month
+- **Vercel**: Free for hobby projects (unlimited deployments)
+- **Supabase**: Free tier includes:
+  - 500MB database
+  - 50,000 monthly active users
+  - 2GB file storage
+  - Perfect for MVP and testing!
 
 ---
 
