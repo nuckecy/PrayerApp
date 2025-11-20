@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -8,18 +8,19 @@ export const metadata: Metadata = {
   title: "DailyGoalTracker - Achieve your goals, one day at a time",
   description: "A Progressive Web App for structured habit formation and micro-learning through daily goal completion with community-driven accountability.",
   manifest: "/manifest.json",
-  themeColor: "#4F46E5",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "GoalTracker",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#4F46E5",
 };
 
 export default function RootLayout({
