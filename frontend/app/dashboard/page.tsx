@@ -5,65 +5,79 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { api } from '@/lib/api/client';
+import { supabase } from '@/lib/supabase';
+import { getCurrentUser, getUserProfile, signOut } from '@/lib/auth';
 
 interface Enrollment {
   id: string;
-  currentDayIndex: number;
-  streakCount: number;
+  current_day_index: number;
+  streak_count: number;
   status: string;
-  goal: {
+  goals: {
     id: string;
     title: string;
     description: string;
-    totalDays: number;
+    total_days: number;
     tags: string[];
-    author: {
-      user: {
-        name: string;
-      };
-    };
-  };
-  _count: {
-    completions: number;
   };
 }
 
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/auth/login');
-      return;
-    }
-
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
-
-    const fetchEnrollments = async () => {
+    const checkAuth = async () => {
       try {
-        const response: any = await api.getMyGoals();
-        setEnrollments(response.enrollments);
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+          router.push('/auth/login');
+          return;
+        }
+
+        setUser(currentUser);
+
+        // Fetch user profile
+        const userProfile = await getUserProfile(currentUser.id);
+        setProfile(userProfile);
+
+        // Fetch enrollments
+        const { data: enrollmentsData, error } = await supabase
+          .from('enrollments')
+          .select(`
+            id,
+            current_day_index,
+            streak_count,
+            status,
+            goals (
+              id,
+              title,
+              description,
+              total_days,
+              tags
+            )
+          `)
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setEnrollments(enrollmentsData || []);
       } catch (error) {
-        console.error('Failed to fetch enrollments:', error);
+        console.error('Failed to fetch data:', error);
+        router.push('/auth/login');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchEnrollments();
+    checkAuth();
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  const handleLogout = async () => {
+    await signOut();
     router.push('/');
   };
 
@@ -84,7 +98,7 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Welcome back, {user?.name}!</h1>
+            <h1 className="text-4xl font-bold mb-2">Welcome back, {profile?.name || user?.email}!</h1>
             {activeEnrollments.length > 0 && (
               <p className="text-lg text-muted-foreground">
                 Keep up your streak! You&apos;re doing great.
@@ -119,14 +133,14 @@ export default function DashboardPage() {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeEnrollments.map((enrollment) => {
-                const progress = (enrollment._count.completions / enrollment.goal.totalDays) * 100;
+                const progress = (enrollment.current_day_index / enrollment.goals.total_days) * 100;
 
                 return (
                   <Card key={enrollment.id}>
                     <CardHeader>
-                      <CardTitle>{enrollment.goal.title}</CardTitle>
+                      <CardTitle>{enrollment.goals.title}</CardTitle>
                       <CardDescription>
-                        Day {enrollment.currentDayIndex} of {enrollment.goal.totalDays}
+                        Day {enrollment.current_day_index} of {enrollment.goals.total_days}
                       </CardDescription>
                     </CardHeader>
 
@@ -144,17 +158,17 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      {enrollment.streakCount > 0 && (
+                      {enrollment.streak_count > 0 && (
                         <div className="flex items-center gap-2 text-sm">
                           <span>🔥</span>
-                          <span className="font-medium">{enrollment.streakCount} day streak</span>
+                          <span className="font-medium">{enrollment.streak_count} day streak</span>
                         </div>
                       )}
                     </CardContent>
 
                     <CardFooter>
                       <Button asChild className="w-full">
-                        <Link href={`/goals/${enrollment.goal.id}/play/${enrollment.id}`}>
+                        <Link href={`/goals/${enrollment.goals.id}/play/${enrollment.id}`}>
                           Continue
                         </Link>
                       </Button>
@@ -177,16 +191,16 @@ export default function DashboardPage() {
                 <Card key={enrollment.id} className="opacity-80">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      {enrollment.goal.title}
+                      {enrollment.goals.title}
                       <span className="text-xl">✅</span>
                     </CardTitle>
                     <CardDescription>
-                      Completed {enrollment.goal.totalDays} days
+                      Completed {enrollment.goals.total_days} days
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      by {enrollment.goal.author.user.name}
+                      {enrollment.goals.description}
                     </p>
                   </CardContent>
                 </Card>

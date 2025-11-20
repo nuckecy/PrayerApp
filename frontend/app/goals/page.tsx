@@ -4,16 +4,20 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { api } from '@/lib/api/client';
+import { supabase } from '@/lib/supabase';
 
 interface Goal {
   id: string;
   title: string;
   description: string;
-  totalDays: number;
+  total_days: number;
   tags: string[];
-  authorName: string;
-  enrollmentCount: number;
+  authors?: {
+    user_id: string;
+    profiles?: {
+      name: string;
+    };
+  };
 }
 
 export default function GoalsPage() {
@@ -23,8 +27,27 @@ export default function GoalsPage() {
   useEffect(() => {
     const fetchGoals = async () => {
       try {
-        const response: any = await api.getGoals();
-        setGoals(response.goals);
+        // Fetch published goals with author information
+        const { data, error } = await supabase
+          .from('goals')
+          .select(`
+            id,
+            title,
+            description,
+            total_days,
+            tags,
+            authors (
+              user_id,
+              profiles (
+                name
+              )
+            )
+          `)
+          .eq('approval_status', 'published')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setGoals(data || []);
       } catch (error) {
         console.error('Failed to fetch goals:', error);
       } finally {
@@ -65,28 +88,30 @@ export default function GoalsPage() {
 
               <CardContent className="flex-grow">
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {goal.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2 py-1 text-xs bg-primary/10 text-primary rounded"
-                    >
-                      {tag}
+                  {goal.tags && goal.tags.length > 0 ? (
+                    goal.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-2 py-1 text-xs bg-primary/10 text-primary rounded"
+                      >
+                        {tag}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="px-2 py-1 text-xs bg-gray-100 text-gray-500 rounded">
+                      No tags
                     </span>
-                  ))}
+                  )}
                 </div>
 
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <span>📅</span>
-                    <span>{goal.totalDays} days</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span>👥</span>
-                    <span>{goal.enrollmentCount} enrolled</span>
+                    <span>{goal.total_days} days</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span>✍️</span>
-                    <span>by {goal.authorName}</span>
+                    <span>by {goal.authors?.profiles?.name || 'Unknown'}</span>
                   </div>
                 </div>
               </CardContent>
