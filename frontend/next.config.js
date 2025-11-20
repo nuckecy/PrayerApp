@@ -2,9 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  experimental: {
-    optimizeCss: true,
-  },
   // PWA configuration
   webpack: (config, { isServer }) => {
     if (!isServer) {
