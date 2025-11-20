@@ -1,0 +1,6 @@
+# Vercel build settings
+.vercel
+
+# Local env files (don't commit secrets!)
+.env*.local
+.env.production
