@@ -8,18 +8,21 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { supabase } from '@/lib/supabase';
 import { getCurrentUser, getUserProfile, signOut } from '@/lib/auth';
 
+interface Goal {
+  id: string;
+  title: string;
+  description: string;
+  total_days: number;
+  tags: string[];
+}
+
 interface Enrollment {
   id: string;
   current_day_index: number;
   streak_count: number;
   status: string;
-  goals: {
-    id: string;
-    title: string;
-    description: string;
-    total_days: number;
-    tags: string[];
-  };
+  goal_id: string;
+  goals: Goal;
 }
 
 export default function DashboardPage() {
@@ -44,7 +47,7 @@ export default function DashboardPage() {
         const userProfile = await getUserProfile(currentUser.id);
         setProfile(userProfile);
 
-        // Fetch enrollments
+        // Fetch enrollments with goals
         const { data: enrollmentsData, error } = await supabase
           .from('enrollments')
           .select(`
@@ -52,7 +55,8 @@ export default function DashboardPage() {
             current_day_index,
             streak_count,
             status,
-            goals (
+            goal_id,
+            goals!inner (
               id,
               title,
               description,
@@ -64,7 +68,9 @@ export default function DashboardPage() {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setEnrollments(enrollmentsData || []);
+
+        // Type assertion since Supabase returns the correct structure
+        setEnrollments((enrollmentsData as any) || []);
       } catch (error) {
         console.error('Failed to fetch data:', error);
         router.push('/auth/login');
