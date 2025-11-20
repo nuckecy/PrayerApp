@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { api, APIError } from '@/lib/api/client';
+import { supabase } from '@/lib/supabase';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -24,19 +24,32 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response: any = await api.register(formData);
+      // Sign up with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            name: formData.name,
+          },
+        },
+      });
 
-      if (response.token) {
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // Update profile with timezone
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ timezone: formData.timezone })
+          .eq('id', authData.user.id);
+
+        if (profileError) throw profileError;
+
         router.push('/dashboard');
       }
-    } catch (err) {
-      if (err instanceof APIError) {
-        setError(err.message);
-      } else {
-        setError('An unexpected error occurred');
-      }
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
