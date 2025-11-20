@@ -111,9 +111,14 @@ export default function DashboardPage() {
               </p>
             )}
           </div>
-          <Button variant="outline" onClick={handleLogout}>
-            Logout
-          </Button>
+          <div className="flex gap-4">
+            <Button variant="outline" asChild>
+              <Link href="/author/dashboard">Author Dashboard</Link>
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
         </div>
 
         {/* Active Goals */}
