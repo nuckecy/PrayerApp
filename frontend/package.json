@@ -9,8 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@iconify-json/solar": "^1.2.5",
+    "@iconify/react": "^6.0.2",
     "@radix-ui/react-slot": "^1.0.2",
-    "@supabase/supabase-js": "^2.84.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
