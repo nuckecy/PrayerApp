@@ -14,9 +14,10 @@
    vercel login
    ```
 
-3. **Deploy from the repository root**:
+3. **Deploy from the frontend directory**:
    ```bash
-   vercel
+   cd frontend
+   vercel --prod
    ```
 
 4. **Follow the prompts**:
@@ -24,11 +25,8 @@
    - Which scope? Select your account
    - Link to existing project? **No**
    - Project name: `dailygoaltracker` (or your choice)
-   - In which directory is your code located? `./frontend`
-   - Override settings? **Yes**
-   - Build Command: `npm run build`
-   - Output Directory: `.next`
-   - Development Command: `npm run dev`
+   - Framework will be auto-detected as Next.js
+   - Accept default settings or override if needed
 
 5. **Set Environment Variables in Vercel Dashboard**:
    - Go to your project settings
@@ -45,12 +43,19 @@
    ```
 
 2. **Connect to Vercel**:
-   - Go to [vercel.com](https://vercel.com)
-   - Click "Add New Project"
-   - Import your GitHub repository
-   - Select the `frontend` directory as the root
-   - Add environment variables
+   - Go to [vercel.com/new](https://vercel.com/new)
+   - Click "Add New Project" or "Import Project"
+   - Import your GitHub repository `nuckecy/PrayerApp`
+   - **IMPORTANT**: Set "Root Directory" to `frontend`
+   - Framework will be auto-detected as Next.js
+   - Add environment variables (see below)
    - Click "Deploy"
+
+### Quick Deploy Button
+
+You can also use this one-click deploy:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/nuckecy/PrayerApp&project-name=dailygoaltracker&root-directory=frontend)
 
 ### Environment Variables for Production
 
