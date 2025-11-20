@@ -1,0 +1,210 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  super_admin
+  author
+  user
+}
+
+enum ApprovalStatus {
+  draft
+  pending
+  published
+  archived
+}
+
+enum EnrollmentStatus {
+  active
+  paused
+  completed
+}
+
+enum ContentType {
+  text
+  exercise
+  checklist
+}
+
+enum PrivacySetting {
+  public
+  private
+}
+
+enum AuthorStatus {
+  pending
+  active
+  suspended
+}
+
+model User {
+  id                      String                @id @default(uuid())
+  email                   String                @unique
+  name                    String
+  passwordHash            String                @map("password_hash")
+  role                    UserRole              @default(user)
+  timezone                String                @default("UTC")
+  emailVerified           Boolean               @default(false) @map("email_verified")
+  notificationPreferences Json                  @default("{}") @map("notification_preferences")
+  createdAt               DateTime              @default(now()) @map("created_at")
+  updatedAt               DateTime              @updatedAt @map("updated_at")
+
+  author                  Author?
+  enrollments             Enrollment[]
+  groupsCreated           Group[]
+  achievements            UserAchievement[]
+
+  @@map("users")
+}
+
+model Author {
+  id            String        @id @default(uuid())
+  userId        String        @unique @map("user_id")
+  bio           String?
+  status        AuthorStatus  @default(pending)
+  portfolioUrl  String?       @map("portfolio_url")
+  approvalDate  DateTime?     @map("approval_date")
+  approvedBy    String?       @map("approved_by")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals         Goal[]
+
+  @@map("authors")
+}
+
+model Goal {
+  id              String          @id @default(uuid())
+  authorId        String          @map("author_id")
+  title           String
+  description     String
+  citation        String?
+  minDays         Int             @default(5) @map("min_days")
+  totalDays       Int             @map("total_days")
+  approvalStatus  ApprovalStatus  @default(draft) @map("approval_status")
+  version         Int             @default(1)
+  tags            String[]
+  chatEnabled     Boolean         @default(false) @map("chat_enabled")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  author          Author          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  days            GoalDay[]
+  enrollments     Enrollment[]
+  groups          Group[]
+
+  @@index([approvalStatus])
+  @@map("goals")
+}
+
+model GoalDay {
+  id              String      @id @default(uuid())
+  goalId          String      @map("goal_id")
+  dayIndex        Int         @map("day_index")
+  title           String
+  briefPreview    String?     @map("brief_preview")
+  contentType     ContentType @map("content_type")
+  contentPayload  Json        @map("content_payload")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  goal            Goal        @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  completions     DayCompletion[]
+
+  @@unique([goalId, dayIndex])
+  @@index([goalId, dayIndex])
+  @@map("goal_days")
+}
+
+model Group {
+  id                String          @id @default(uuid())
+  goalId            String          @map("goal_id")
+  creatorId         String          @map("creator_id")
+  name              String
+  inviteCode        String          @unique @map("invite_code")
+  privacySetting    PrivacySetting  @default(private) @map("privacy_setting")
+  memberVisibility  Boolean         @default(true) @map("member_visibility")
+  chatEnabled       Boolean         @default(true) @map("chat_enabled")
+  maxMembers        Int?            @map("max_members")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  goal              Goal            @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  creator           User            @relation(fields: [creatorId], references: [id])
+  enrollments       Enrollment[]
+
+  @@index([inviteCode])
+  @@map("groups")
+}
+
+model Enrollment {
+  id                String            @id @default(uuid())
+  userId            String            @map("user_id")
+  goalId            String            @map("goal_id")
+  groupId           String?           @map("group_id")
+  currentDayIndex   Int               @default(1) @map("current_day_index")
+  lastCompletedAt   DateTime?         @map("last_completed_at")
+  streakCount       Int               @default(0) @map("streak_count")
+  status            EnrollmentStatus  @default(active)
+  startDate         DateTime          @default(now()) @map("start_date")
+  projectedEndDate  DateTime?         @map("projected_end_date")
+  actualEndDate     DateTime?         @map("actual_end_date")
+  createdAt         DateTime          @default(now()) @map("created_at")
+
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal              Goal              @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  group             Group?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  completions       DayCompletion[]
+
+  @@unique([userId, goalId, groupId])
+  @@index([userId, status])
+  @@map("enrollments")
+}
+
+model DayCompletion {
+  id              String      @id @default(uuid())
+  enrollmentId    String      @map("enrollment_id")
+  goalDayId       String      @map("goal_day_id")
+  dayIndex        Int         @map("day_index")
+  completedAt     DateTime    @default(now()) @map("completed_at")
+  completedData   Json?       @map("completed_data")
+
+  enrollment      Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  goalDay         GoalDay     @relation(fields: [goalDayId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, dayIndex])
+  @@map("day_completions")
+}
+
+model Achievement {
+  id            String            @id @default(uuid())
+  name          String
+  description   String
+  icon          String
+  criteria      Json
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  users         UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id              String      @id @default(uuid())
+  userId          String      @map("user_id")
+  achievementId   String      @map("achievement_id")
+  earnedAt        DateTime    @default(now()) @map("earned_at")
+
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement     Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
