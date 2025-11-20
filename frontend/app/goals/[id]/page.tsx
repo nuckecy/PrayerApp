@@ -280,21 +280,48 @@ export default function GoalDetailPage({ params }: { params: { id: string } }) {
                 </div>
               )}
 
-              {/* Enrollment Button */}
-              <div>
+              {/* Enrollment Options */}
+              <div className="space-y-3">
                 {isEnrolled ? (
                   <Button className="w-full" size="lg" asChild>
                     <Link href="/dashboard">View in Dashboard</Link>
                   </Button>
                 ) : (
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    onClick={handleEnroll}
-                    disabled={enrolling}
-                  >
-                    {enrolling ? 'Enrolling...' : isAuthenticated ? 'Enroll in This Goal' : 'Sign In to Enroll'}
-                  </Button>
+                  <>
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={handleEnroll}
+                      disabled={enrolling}
+                    >
+                      {enrolling ? 'Enrolling...' : isAuthenticated ? 'Start Solo' : 'Sign In to Start'}
+                    </Button>
+
+                    {isAuthenticated && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          size="lg"
+                          asChild
+                        >
+                          <Link href={`/groups/create?goalId=${params.id}`}>
+                            👥 Create Group
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          size="lg"
+                          asChild
+                        >
+                          <Link href="/groups/join">
+                            🔗 Join Group
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </CardContent>

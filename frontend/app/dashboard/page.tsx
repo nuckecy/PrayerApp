@@ -22,7 +22,12 @@ interface Enrollment {
   streak_count: number;
   status: string;
   goal_id: string;
+  group_id: string | null;
   goals: Goal;
+  groups?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export default function DashboardPage() {
@@ -47,7 +52,7 @@ export default function DashboardPage() {
         const userProfile = await getUserProfile(currentUser.id);
         setProfile(userProfile);
 
-        // Fetch enrollments with goals
+        // Fetch enrollments with goals and groups
         const { data: enrollmentsData, error } = await supabase
           .from('enrollments')
           .select(`
@@ -56,12 +61,17 @@ export default function DashboardPage() {
             streak_count,
             status,
             goal_id,
+            group_id,
             goals!inner (
               id,
               title,
               description,
               total_days,
               tags
+            ),
+            groups (
+              id,
+              name
             )
           `)
           .eq('user_id', currentUser.id)
@@ -153,6 +163,13 @@ export default function DashboardPage() {
                       <CardDescription>
                         Day {enrollment.current_day_index} of {enrollment.goals.total_days}
                       </CardDescription>
+                      {enrollment.groups && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
+                            👥 {enrollment.groups.name}
+                          </span>
+                        </div>
+                      )}
                     </CardHeader>
 
                     <CardContent className="space-y-4">
@@ -177,12 +194,19 @@ export default function DashboardPage() {
                       )}
                     </CardContent>
 
-                    <CardFooter>
-                      <Button asChild className="w-full">
+                    <CardFooter className="flex gap-2">
+                      <Button asChild className="flex-1">
                         <Link href={`/goals/${enrollment.goals.id}/play/${enrollment.id}`}>
                           Continue
                         </Link>
                       </Button>
+                      {enrollment.groups && (
+                        <Button asChild variant="outline" className="flex-1">
+                          <Link href={`/groups/${enrollment.group_id}`}>
+                            Group
+                          </Link>
+                        </Button>
+                      )}
                     </CardFooter>
                   </Card>
                 );
