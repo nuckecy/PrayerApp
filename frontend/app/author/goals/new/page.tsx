@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
 import { getCurrentUser } from '@/lib/auth';
+import { validateGoalDayContent, formatContentErrors } from '@/lib/content-validation';
 
 interface DayContent {
   dayIndex: number;
@@ -72,6 +73,20 @@ export default function NewGoalPage() {
       return;
     }
 
+    // Validate content payload
+    const validation = validateGoalDayContent(
+      currentDay.contentType,
+      currentDay.contentPayload
+    );
+
+    if (!validation.isValid) {
+      setError(
+        'Content validation failed:\n' +
+        (validation.errors?.join('\n') || 'Invalid content')
+      );
+      return;
+    }
+
     setDays([...days, { ...currentDay }]);
     setCurrentDay({
       dayIndex: days.length + 2,
@@ -120,6 +135,18 @@ export default function NewGoalPage() {
       if (days.length !== goalData.totalDays) {
         setError(`You specified ${goalData.totalDays} days but only created ${days.length} days`);
         return;
+      }
+
+      // Validate all day content payloads before submission
+      for (const day of days) {
+        const validation = validateGoalDayContent(day.contentType, day.contentPayload);
+        if (!validation.isValid) {
+          setError(
+            `Day ${day.dayIndex} has invalid content:\n` +
+            (validation.errors?.join('\n') || 'Invalid content')
+          );
+          return;
+        }
       }
 
       const user = await getCurrentUser();

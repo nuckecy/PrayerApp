@@ -12,6 +12,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import { useSubscription } from '@/lib/subscription-manager';
 
 interface Notification {
   id: string;
@@ -29,31 +30,33 @@ export function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadNotifications();
-
-    // Subscribe to new notifications
-    const channel = supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-        },
-        (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev]);
-          setUnreadCount((prev) => prev + 1);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+    // Get user ID for subscription
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserId(user?.id || null);
     };
+    getUserId();
+    loadNotifications();
   }, []);
+
+  // Subscribe to new notifications using subscription manager
+  // Automatically limits concurrent subscriptions and cleans up on unmount
+  const { isSubscribed, error: subscriptionError } = useSubscription(
+    'notifications',
+    {
+      table: 'notifications',
+      event: 'INSERT',
+      filter: userId ? `user_id=eq.${userId}` : undefined,
+    },
+    (payload) => {
+      setNotifications((prev) => [payload.new as Notification, ...prev]);
+      setUnreadCount((prev) => prev + 1);
+    },
+    !!userId // Only subscribe when we have a user ID
+  );
 
   const loadNotifications = async () => {
     try {
