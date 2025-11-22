@@ -8,6 +8,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { supabase } from '@/lib/supabase';
 import { loginLimiter, withRateLimit } from '@/lib/rate-limiter';
 import { logLogin, logLoginFailed, logRateLimitExceeded } from '@/lib/security-logger';
+import {
+  checkLoginAllowed,
+  handleFailedLogin,
+  formatLockoutMessage,
+  getAttemptsWarning,
+} from '@/lib/account-lockout';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,14 +22,26 @@ export default function LoginPage() {
     password: '',
   });
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setWarning('');
     setLoading(true);
 
     try {
+      // Check if account is locked before attempting login
+      const lockoutCheck = await checkLoginAllowed(formData.email.toLowerCase());
+
+      if (!lockoutCheck.canAttemptLogin && lockoutCheck.lockoutStatus) {
+        const lockoutMsg = formatLockoutMessage(lockoutCheck.lockoutStatus);
+        setError(lockoutMsg);
+        setLoading(false);
+        return;
+      }
+
       // Apply rate limiting to prevent brute force attacks
       const result = await withRateLimit(
         loginLimiter,
@@ -40,6 +58,9 @@ export default function LoginPage() {
       );
 
       if (!result.success) {
+        // Handle failed login - record attempt and check for lockout
+        const failedLoginResult = await handleFailedLogin(formData.email.toLowerCase());
+
         // Check if rate limit was exceeded
         if (result.retryAfter) {
           await logRateLimitExceeded(formData.email.toLowerCase(), 'login');
@@ -47,7 +68,20 @@ export default function LoginPage() {
           // Log failed login attempt
           await logLoginFailed(formData.email, result.error || 'Unknown error');
         }
-        setError(result.error || 'Login failed');
+
+        // Check if account is now locked
+        if (!failedLoginResult.canAttemptLogin && failedLoginResult.lockoutStatus) {
+          const lockoutMsg = formatLockoutMessage(failedLoginResult.lockoutStatus);
+          setError(lockoutMsg);
+        } else {
+          setError(result.error || 'Login failed');
+
+          // Show warning about remaining attempts
+          const warningMsg = getAttemptsWarning(failedLoginResult.failedAttempts || 0);
+          if (warningMsg) {
+            setWarning(warningMsg);
+          }
+        }
         return;
       }
 
@@ -57,9 +91,25 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } catch (err: any) {
+      // Handle failed login - record attempt and check for lockout
+      const failedLoginResult = await handleFailedLogin(formData.email.toLowerCase());
+
       // Log failed login attempt
       await logLoginFailed(formData.email, err.message || 'Unknown error');
-      setError(err.message || 'An unexpected error occurred');
+
+      // Check if account is now locked
+      if (!failedLoginResult.canAttemptLogin && failedLoginResult.lockoutStatus) {
+        const lockoutMsg = formatLockoutMessage(failedLoginResult.lockoutStatus);
+        setError(lockoutMsg);
+      } else {
+        setError(err.message || 'An unexpected error occurred');
+
+        // Show warning about remaining attempts
+        const warningMsg = getAttemptsWarning(failedLoginResult.failedAttempts || 0);
+        if (warningMsg) {
+          setWarning(warningMsg);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -79,6 +129,12 @@ export default function LoginPage() {
             {error && (
               <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
                 {error}
+              </div>
+            )}
+
+            {warning && (
+              <div className="p-3 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded">
+                {warning}
               </div>
             )}
 

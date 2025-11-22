@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { supabase } from '@/lib/supabase';
 import { registrationLimiter, withRateLimit } from '@/lib/rate-limiter';
 import { logRegistration, logRegistrationFailed, logRateLimitExceeded } from '@/lib/security-logger';
+import {
+  validatePasswordStrength,
+  getStrengthColor,
+  getStrengthLabel,
+  getStrengthPercentage,
+  type PasswordValidation,
+} from '@/lib/password-strength';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,11 +26,29 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordValidation, setPasswordValidation] = useState<PasswordValidation | null>(null);
+
+  // Validate password strength in real-time
+  useEffect(() => {
+    if (formData.password) {
+      const validation = validatePasswordStrength(formData.password);
+      setPasswordValidation(validation);
+    } else {
+      setPasswordValidation(null);
+    }
+  }, [formData.password]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    // Validate password strength before submission
+    if (passwordValidation && !passwordValidation.isValid) {
+      setError('Password does not meet minimum requirements: ' + passwordValidation.feedback.join(', '));
+      setLoading(false);
+      return;
+    }
 
     try {
       // Apply rate limiting to prevent spam registrations
@@ -142,9 +167,66 @@ export default function RegisterPage() {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                At least 8 characters with uppercase, lowercase, and number
-              </p>
+
+              {/* Password Strength Indicator */}
+              {passwordValidation && formData.password && (
+                <div className="space-y-2">
+                  {/* Strength Bar */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 ${
+                          passwordValidation.strength === 'weak'
+                            ? 'bg-red-500'
+                            : passwordValidation.strength === 'fair'
+                            ? 'bg-orange-500'
+                            : passwordValidation.strength === 'good'
+                            ? 'bg-yellow-500'
+                            : 'bg-green-500'
+                        }`}
+                        style={{ width: `${getStrengthPercentage(passwordValidation.score)}%` }}
+                      />
+                    </div>
+                    <span
+                      className={`text-xs font-medium ${
+                        passwordValidation.strength === 'weak'
+                          ? 'text-red-600'
+                          : passwordValidation.strength === 'fair'
+                          ? 'text-orange-600'
+                          : passwordValidation.strength === 'good'
+                          ? 'text-yellow-600'
+                          : 'text-green-600'
+                      }`}
+                    >
+                      {getStrengthLabel(passwordValidation.strength)}
+                    </span>
+                  </div>
+
+                  {/* Feedback Messages */}
+                  {passwordValidation.feedback.length > 0 && (
+                    <div className="text-xs text-red-600">
+                      {passwordValidation.feedback.map((msg, idx) => (
+                        <div key={idx}>• {msg}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Suggestions */}
+                  {passwordValidation.suggestions.length > 0 && (
+                    <div className="text-xs text-gray-600">
+                      {passwordValidation.suggestions.map((msg, idx) => (
+                        <div key={idx}>💡 {msg}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!formData.password && (
+                <p className="text-xs text-muted-foreground">
+                  At least 8 characters with uppercase, lowercase, and number
+                </p>
+              )}
             </div>
           </CardContent>
 
