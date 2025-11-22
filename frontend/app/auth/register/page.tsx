@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
+import { registrationLimiter, withRateLimit } from '@/lib/rate-limiter';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -24,28 +25,44 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Sign up with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            name: formData.name,
-          },
-        },
-      });
+      // Apply rate limiting to prevent spam registrations
+      const result = await withRateLimit(
+        registrationLimiter,
+        formData.email.toLowerCase(),
+        async () => {
+          // Sign up with Supabase Auth
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password,
+            options: {
+              data: {
+                name: formData.name,
+              },
+            },
+          });
 
-      if (authError) throw authError;
+          if (authError) throw authError;
 
-      if (authData.user) {
-        // Update profile with timezone
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ timezone: formData.timezone })
-          .eq('id', authData.user.id);
+          if (authData.user) {
+            // Update profile with timezone
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .update({ timezone: formData.timezone })
+              .eq('id', authData.user.id);
 
-        if (profileError) throw profileError;
+            if (profileError) throw profileError;
+          }
 
+          return authData;
+        }
+      );
+
+      if (!result.success) {
+        setError(result.error || 'Registration failed');
+        return;
+      }
+
+      if (result.data?.user) {
         router.push('/dashboard');
       }
     } catch (err: any) {

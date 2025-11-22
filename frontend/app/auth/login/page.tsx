@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
+import { loginLimiter, withRateLimit } from '@/lib/rate-limiter';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,14 +23,27 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
+      // Apply rate limiting to prevent brute force attacks
+      const result = await withRateLimit(
+        loginLimiter,
+        formData.email.toLowerCase(),
+        async () => {
+          const { data, error: authError } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
+          });
 
-      if (authError) throw authError;
+          if (authError) throw authError;
+          return data;
+        }
+      );
 
-      if (data.user) {
+      if (!result.success) {
+        setError(result.error || 'Login failed');
+        return;
+      }
+
+      if (result.data?.user) {
         router.push('/dashboard');
       }
     } catch (err: any) {
