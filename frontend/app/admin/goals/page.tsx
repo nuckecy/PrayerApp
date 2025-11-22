@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, Clock, Eye, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { createPagination, type PaginationMeta } from '@/lib/pagination';
+import { logGoalApproved, logGoalRejected } from '@/lib/admin-audit-logger';
 
 interface Goal {
   id: string;
@@ -158,12 +159,19 @@ export default function GoalModerationPage() {
 
     setProcessing(goalId);
     try {
+      // Get goal title for audit log
+      const goal = goals.find(g => g.id === goalId);
+      const goalTitle = goal?.title || 'Unknown Goal';
+
       const { error } = await supabase
         .from('goals')
         .update({ approval_status: 'published' })
         .eq('id', goalId);
 
       if (error) throw error;
+
+      // Log admin action
+      await logGoalApproved(goalId, goalTitle);
 
       // Notify author
       await supabase.rpc('create_notification', {
@@ -191,12 +199,19 @@ export default function GoalModerationPage() {
 
     setProcessing(goalId);
     try {
+      // Get goal title for audit log
+      const goal = goals.find(g => g.id === goalId);
+      const goalTitle = goal?.title || 'Unknown Goal';
+
       const { error } = await supabase
         .from('goals')
         .update({ approval_status: 'draft' })
         .eq('id', goalId);
 
       if (error) throw error;
+
+      // Log admin action
+      await logGoalRejected(goalId, goalTitle, reason);
 
       // Notify author
       await supabase.rpc('create_notification', {

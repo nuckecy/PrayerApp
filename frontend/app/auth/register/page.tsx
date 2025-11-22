@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
 import { registrationLimiter, withRateLimit } from '@/lib/rate-limiter';
+import { logRegistration, logRegistrationFailed, logRateLimitExceeded } from '@/lib/security-logger';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -58,14 +59,25 @@ export default function RegisterPage() {
       );
 
       if (!result.success) {
+        // Check if rate limit was exceeded
+        if (result.retryAfter) {
+          await logRateLimitExceeded(formData.email.toLowerCase(), 'registration');
+        } else {
+          // Log failed registration attempt
+          await logRegistrationFailed(formData.email, result.error || 'Unknown error');
+        }
         setError(result.error || 'Registration failed');
         return;
       }
 
       if (result.data?.user) {
+        // Log successful registration
+        await logRegistration(result.data.user.id, formData.email);
         router.push('/dashboard');
       }
     } catch (err: any) {
+      // Log failed registration attempt
+      await logRegistrationFailed(formData.email, err.message || 'Unknown error');
       setError(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
