@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Clock, Eye, Calendar } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Eye, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { createPagination, type PaginationMeta } from '@/lib/pagination';
 
 interface Goal {
   id: string;
@@ -43,6 +44,8 @@ export default function GoalModerationPage() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [page, setPage] = useState(0);
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | null>(null);
 
   useEffect(() => {
     checkAdminAccess();
@@ -52,7 +55,7 @@ export default function GoalModerationPage() {
     if (!loading) {
       loadGoals();
     }
-  }, [filter, loading]);
+  }, [filter, page, loading]);
 
   const checkAdminAccess = async () => {
     try {
@@ -83,6 +86,9 @@ export default function GoalModerationPage() {
 
   const loadGoals = async () => {
     try {
+      // Create pagination helper
+      const pagination = createPagination({ page, pageSize: 20 });
+
       let query = supabase
         .from('goals')
         .select(`
@@ -102,14 +108,18 @@ export default function GoalModerationPage() {
               name
             )
           )
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(...pagination.range);
 
       if (filter !== 'all') {
         query = query.eq('approval_status', filter);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
+
+      // Update pagination metadata
+      setPaginationMeta(pagination.getMeta(count || 0));
 
       if (error) throw error;
 
@@ -299,7 +309,10 @@ export default function GoalModerationPage() {
           <Button
             variant={filter === 'pending' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setFilter('pending')}
+            onClick={() => {
+              setFilter('pending');
+              setPage(0); // Reset to first page when filter changes
+            }}
           >
             <Clock className="h-4 w-4 mr-2" />
             Pending
@@ -307,7 +320,10 @@ export default function GoalModerationPage() {
           <Button
             variant={filter === 'published' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setFilter('published')}
+            onClick={() => {
+              setFilter('published');
+              setPage(0);
+            }}
           >
             <CheckCircle className="h-4 w-4 mr-2" />
             Published
@@ -315,7 +331,10 @@ export default function GoalModerationPage() {
           <Button
             variant={filter === 'draft' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setFilter('draft')}
+            onClick={() => {
+              setFilter('draft');
+              setPage(0);
+            }}
           >
             <Eye className="h-4 w-4 mr-2" />
             Draft
@@ -323,7 +342,10 @@ export default function GoalModerationPage() {
           <Button
             variant={filter === 'archived' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setFilter('archived')}
+            onClick={() => {
+              setFilter('archived');
+              setPage(0);
+            }}
           >
             <XCircle className="h-4 w-4 mr-2" />
             Archived
@@ -331,7 +353,10 @@ export default function GoalModerationPage() {
           <Button
             variant={filter === 'all' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setFilter('all')}
+            onClick={() => {
+              setFilter('all');
+              setPage(0);
+            }}
           >
             All
           </Button>
@@ -485,6 +510,65 @@ export default function GoalModerationPage() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {paginationMeta && paginationMeta.totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-6 border-t">
+            <div className="text-sm text-muted-foreground">
+              Showing {(paginationMeta.currentPage * paginationMeta.pageSize) + 1}-
+              {Math.min((paginationMeta.currentPage + 1) * paginationMeta.pageSize, paginationMeta.totalItems)} of {paginationMeta.totalItems} goals
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={!paginationMeta.hasPreviousPage}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: paginationMeta.totalPages }, (_, i) => i)
+                  .filter(i => {
+                    // Show first, last, current, and nearby pages
+                    return i === 0 ||
+                           i === paginationMeta.totalPages - 1 ||
+                           Math.abs(i - paginationMeta.currentPage) <= 1;
+                  })
+                  .map((i, index, array) => {
+                    const prevPage = array[index - 1];
+                    const showEllipsis = prevPage !== undefined && i - prevPage > 1;
+
+                    return (
+                      <React.Fragment key={i}>
+                        {showEllipsis && (
+                          <span className="px-2 text-muted-foreground">...</span>
+                        )}
+                        <Button
+                          variant={i === paginationMeta.currentPage ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setPage(i)}
+                          className="w-10"
+                        >
+                          {i + 1}
+                        </Button>
+                      </React.Fragment>
+                    );
+                  })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => p + 1)}
+                disabled={!paginationMeta.hasNextPage}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
       </div>
