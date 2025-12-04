@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
 import { loginLimiter, withRateLimit } from '@/lib/rate-limiter';
 
@@ -54,65 +54,123 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Welcome Back</CardTitle>
-          <CardDescription>
-            Sign in to continue your progress
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-gray-100 dark:bg-gray-900 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gray-200 dark:bg-gray-800 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
+      </div>
+
+      <div className="relative z-10 w-full max-w-md">
+        {/* Card */}
+        <div className="card border-border shadow-lg">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-semibold tracking-tight mb-1">
+              Welcome Back
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Sign in to your account to continue
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Error Alert */}
             {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
-                {error}
+              <div className="alert alert-destructive">
+                <div className="text-sm font-medium">{error}</div>
               </div>
             )}
 
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
+            {/* Email Field */}
+            <div className="form-group">
+              <label htmlFor="email" className="input-label">
+                Email Address
               </label>
-              <input
+              <Input
                 id="email"
                 type="email"
+                placeholder="you@example.com"
                 required
-                className="w-full px-3 py-2 border rounded-md"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
-              <input
+            {/* Password Field */}
+            <div className="form-group">
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="password" className="input-label">
+                  Password
+                </label>
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                >
+                  Forgot?
+                </Link>
+              </div>
+              <Input
                 id="password"
                 type="password"
+                placeholder="••••••••"
                 required
-                className="w-full px-3 py-2 border rounded-md"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
             </div>
-          </CardContent>
 
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              className="btn-primary w-full"
+              disabled={loading}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="loading-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </span>
+                  Signing in...
+                </span>
+              ) : (
+                'Sign In'
+              )}
             </Button>
 
+            {/* Divider */}
+            <div className="relative">
+              <div className="divider"></div>
+            </div>
+
+            {/* Sign Up Link */}
             <p className="text-sm text-center text-muted-foreground">
               Don&apos;t have an account?{' '}
-              <Link href="/auth/register" className="text-primary hover:underline">
-                Create one
+              <Link
+                href="/auth/register"
+                className="font-medium text-foreground hover:text-primary transition-colors"
+              >
+                Sign up
               </Link>
             </p>
-          </CardFooter>
-        </form>
-      </Card>
+          </form>
+        </div>
+
+        {/* Footer text */}
+        <p className="text-xs text-center text-muted-foreground mt-8">
+          By signing in, you agree to our{' '}
+          <Link href="/terms" className="hover:text-foreground transition-colors">
+            Terms of Service
+          </Link>
+          {' '}and{' '}
+          <Link href="/privacy" className="hover:text-foreground transition-colors">
+            Privacy Policy
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
